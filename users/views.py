@@ -76,6 +76,7 @@ class PasswordResetCompleteView(APIView):
         serializer = PasswordResetCompleteSerializer(data=request.data)
         
         if serializer.is_valid():
+            serializer.save()
             return Response(
                 {"message": "Password reset successfull"},
                 status=status.HTTP_200_OK
