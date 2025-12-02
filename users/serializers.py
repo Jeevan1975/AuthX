@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import User
+from django.utils import timezone
+from .models import User, ResetToken
+from .utils import generate_reset_token
+from datetime import timedelta
 import re
 
 
@@ -50,3 +53,32 @@ class LoginSerializer(serializers.Serializer):
         
         attrs["user"] = user
         return attrs
+    
+    
+    
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    
+    def validate(self, attrs):
+        email = attrs.get("email")
+        user = User.objects.filter(email__iexact=email).first()
+        attrs["user"] = user
+        return attrs
+    
+    
+    def save(self):
+        user = self.validated_data["user"]
+        
+        if not user:
+            return None
+        
+        token = generate_reset_token()
+        
+        ResetToken.objects.create(
+            user=user,
+            token=token,
+            expires_at=timezone.now() + timedelta(minutes=15)
+        )
+        
+        return token
