@@ -82,3 +82,59 @@ class PasswordResetRequestSerializer(serializers.Serializer):
         )
         
         return token
+    
+    
+    
+
+class PasswordResetValidateSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    
+    def validate(self, attrs):
+        token = attrs.get("token")
+        reset_token = ResetToken.objects.filter(token=token, used=False).first()
+        
+        if not reset_token:
+            raise serializers.ValidationError("Invalid token")
+        
+        if reset_token.is_expired():
+            raise serializers.ValidationError("Token has expired")
+        
+        attrs["reset_token"] = reset_token
+        return attrs
+    
+    
+
+
+class PasswordResetCompleteSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=6)
+    
+    
+    def validate(self, attrs):
+        token = attrs.get("token")
+        new_password = attrs.get("new_password")
+
+        reset_token = ResetToken.objects.filter(token=token, used=False).first()
+        
+        if not reset_token:
+            raise serializers.ValidationError("Invalid token")
+        
+        if reset_token.is_expired():
+            raise serializers.ValidationError("Token has expired")
+        
+        attrs["reset_token"] = reset_token
+        attrs["user"] = reset_token.user
+        return attrs
+    
+    
+    def save(self):
+        reset_token = self.validated_data["reset_token"]
+        user = self.validated_data["user"]
+        new_password = self.validated_data["new_password"]
+        
+        user.set_password(new_password)
+        user.save()
+        
+        reset_token.mark_used()
+        
+        return user

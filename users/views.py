@@ -1,5 +1,11 @@
 from django.shortcuts import render
-from .serializers import RegisterSerializer, LoginSerializer, PasswordResetRequestSerializer
+from .serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetValidateSerializer,
+    PasswordResetCompleteSerializer
+)
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 from rest_framework.views import APIView
@@ -44,6 +50,34 @@ class PasswordResetRequestView(APIView):
             
             return Response(
                 {"message": "If this email exists, a reset link has been sent."},
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+    
+class PasswordResetValidateView(APIView):
+    def post(self, request):
+        serializer = PasswordResetValidateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            return Response(
+                {"message": "Token is valid"},
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+
+
+class PasswordResetCompleteView(APIView):
+    def post(self, request):
+        serializer = PasswordResetCompleteSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            return Response(
+                {"message": "Password reset successfull"},
                 status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
