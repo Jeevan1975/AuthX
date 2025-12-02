@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import User, ResetToken
+from .models import User, ResetToken, VerificationToken
 from .utils import generate_reset_token
 from datetime import timedelta
 import re
@@ -17,6 +17,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User(**validated_data)
         user.set_password(password)
+        user.is_active = False
         user.save()
         return user
     
@@ -138,3 +139,49 @@ class PasswordResetCompleteSerializer(serializers.Serializer):
         reset_token.mark_used()
         
         return user
+    
+    
+    
+
+def create_email_verification_token(user):
+    token = generate_reset_token()
+    verification = VerificationToken.objects.create(
+        user=user,
+        token=token,
+        expires_at=timezone.now() + timedelta(hours=24)
+    )
+    return verification
+
+
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    
+    def validate(self, attrs):
+        token = attrs.get("token")
+        verification = VerificationToken.objects.filter(token=token, used=False).first()
+        
+        if not verification:
+            raise serializers.ValidationError("Invalid or expired token")
+        
+        if verification.is_expired():
+            raise serializers.ValidationError("Token as expired")
+        
+        attrs["verification"] = verification
+        attrs["user"] = verification.user
+        return attrs
+    
+    
+    def save(self):
+        user = self.validated_data["user"]
+        verification = self.validated_data["verification"]
+        
+        user.is_active = True
+        user.save()
+        
+        verification.mark_used()
+        
+        return user
+    
+    
