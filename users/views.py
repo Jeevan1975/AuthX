@@ -19,6 +19,7 @@ from .models import User, RefreshToken as RefreshTokenModel
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from .email_service import send_verification_email
 
 
 
@@ -37,6 +38,9 @@ class RegisterView(APIView):
             verification_token = create_email_verification_token(user)
             
             verification_url = f"{settings.SITE_URL}/api/verify-email/?token={verification_token.token}"
+            
+            # send email
+            send_verification_email(user.email, verification_url)
             
             return Response(
                 {
