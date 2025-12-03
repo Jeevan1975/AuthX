@@ -18,7 +18,7 @@ from .utils import hash_refresh_token
 from .models import User, RefreshToken as RefreshTokenModel
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from datetime import timezone
+from django.utils import timezone
 
 
 
@@ -128,24 +128,31 @@ class VerifyEmailView(APIView):
                 status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    
-    
-    
+
+
+
+
 class TokenObtainView(APIView):
+    """
+    POST /api/auth/token/   (login)
+    Accepts identifier + password (use your LoginSerializer)
+    Returns access JWT in body and sets refresh cookie (HttpOnly).
+    """
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
-        
+
+        # Prevent login if not active
         if not user.is_active:
             return Response({"detail": "Account not active. Verify your email."}, status=status.HTTP_403_FORBIDDEN)
-        
+
+        # optional: gather device info
         device_info = {
             "ip": request.META.get("REMOTE_ADDR"),
             "user_agent": request.META.get("HTTP_USER_AGENT")
         }
-        
+
         access_str, refresh_str, refresh_record = create_token_pair_and_store(user, device_info=device_info)
 
         resp = Response({
@@ -158,36 +165,41 @@ class TokenObtainView(APIView):
             key=COOKIE_NAME,
             value=refresh_str,
             httponly=True,
-            secure=not settings.DEBUG,
+            secure=not settings.DEBUG,  # ensure secure in production
             samesite="Lax",
             path=COOKIE_PATH,
             max_age=int((refresh_record.expires_at - refresh_record.created_at).total_seconds())
         )
         return resp
-    
-    
 
 
 class TokenRefreshView(APIView):
+    """
+    POST /api/auth/token/refresh/
+    Reads refresh cookie, validates, rotates, and returns new access + sets new cookie.
+    """
     def post(self, request):
         refresh_plain = request.COOKIES.get(COOKIE_NAME)
         if not refresh_plain:
             return Response({"detail": "Refresh token missing"}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
+        # Validate JWT signature and extract claims
         try:
             simple_refresh = SimpleRefreshToken(refresh_plain)
             payload = dict(simple_refresh.payload)
         except:
+            # invalid token signature/format
             return Response({"detail": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
         jti = payload.get("jti")
         user_id = payload.get("user_id")
 
+        # Try to find DB record by jti
         db_record = RefreshTokenModel.objects.filter(jti=jti).first()
-        
+
         # If no DB record => possible reuse / token never issued by this server
         if not db_record:
-            # Revoke all tokens for potential compromise
+            # Revoke all tokens for potential compromise (best-effort)
             User = get_user_model()
             user = User.objects.filter(pk=user_id).first()
             if user:
@@ -205,7 +217,7 @@ class TokenRefreshView(APIView):
             # reuse detected: revoke all tokens for user
             RefreshTokenModel.objects.filter(user=db_record.user).update(revoked=True)
             return Response({"detail": "Token reuse detected. All sessions revoked. Please login again."}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
         # All good -> rotate
         device_info = db_record.device_info or {
             "ip": request.META.get("REMOTE_ADDR"),
@@ -235,11 +247,12 @@ class TokenRefreshView(APIView):
         return resp
 
 
-
-
 class LogoutView(APIView):
+    """
+    POST /api/auth/logout/  -> revoke current refresh token (cookie)
+    """
     def post(self, request):
-        refresh_plain = request.COOKIE.get(COOKIE_NAME)
+        refresh_plain = request.COOKIES.get(COOKIE_NAME)
         if refresh_plain:
             try:
                 simple_refresh = SimpleRefreshToken(refresh_plain)
@@ -254,11 +267,13 @@ class LogoutView(APIView):
         return resp
 
 
-    
-    
 class LogoutAllView(APIView):
+    """
+    POST /api/auth/logout-all/  -> revoke all tokens for current logged-in user
+    Requires Authorization header (access token)
+    """
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         user = request.user
         RefreshTokenModel.objects.filter(user=user).update(revoked=True)

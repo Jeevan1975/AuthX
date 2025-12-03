@@ -151,4 +151,8 @@ REST_FRAMEWORK = {
 }
 
 
+# secret used for hashing refresh tokens in DB
+REFRESH_TOKEN_HASH_SECRET = os.environ.get("REFRESH_TOKEN_HASH_SECRET", "change-this-in-prod")
+
+
 SITE_URL = "http://127.0.0.1:8000"
