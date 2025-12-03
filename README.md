@@ -1,6 +1,6 @@
 # AuthX – Advanced Authentication & Authorization System (Django + DRF)
 
-AuthX is a production-grade authentication and authorization system built using **Django**, **Django REST Framework**, and **JWT (access + refresh tokens)** with advanced security features such as email verification, password reset, refresh token rotation, device tracking, and brute-force protection.
+AuthX is a production-grade authentication and authorization system built using **Django**, **Django REST Framework**, and **JWT (access + refresh tokens)** with advanced security features such as email verification, password reset, refresh token rotation and device tracking.
 
 This project is designed as a complete reference for modern authentication flows used in real-world applications.
 
@@ -104,21 +104,7 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 5️⃣ Configure Gmail SMTP
-
-Edit `settings.py`:
-
-```
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "yourgmail@gmail.com"
-EMAIL_HOST_PASSWORD = "your-app-password"
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-```
-
-### 6️⃣ Run the server
+### 5️⃣ Run the server
 
 ```
 python manage.py runserver
@@ -126,79 +112,25 @@ python manage.py runserver
 
 ---
 
-## 📬 API Endpoints
+## 🔧 Environment Variables (.env)
 
-### 🔹 **Registration**
-
-```
-POST /api/register/
-```
-
-Creates user as inactive and sends verification email.
-
-### 🔹 **Email Verification**
+Create a `.env` file in your project root and add the following configuration values:
 
 ```
-GET /api/verify-email/?token=...
+DJANGO_SECRET_KEY=your-django-secret-key
+REFRESH_TOKEN_HASH_SECRET=your-hash-secret-key
+EMAIL_HOST_USER=yourgmail@gmail.com
+EMAIL_HOST_PASSWORD=your-gmail-app-password
 ```
 
-Activates account.
+### 🔒 Description of each variable:
 
-### 🔹 **Login**
+* **DJANGO_SECRET_KEY** → Django cryptographic signing key (keep private).
+* **REFRESH_TOKEN_HASH_SECRET** → Secret used to hash refresh tokens (HMAC-SHA256).
+* **EMAIL_HOST_USER** → Your Gmail account email.
+* **EMAIL_HOST_PASSWORD** → Gmail App Password (NOT your Gmail password).
 
-```
-POST /api/auth/token/
-```
-
-Returns access token + sets refresh token cookie.
-
-### 🔹 **Refresh Token**
-
-```
-POST /api/auth/token/refresh/
-```
-
-Rotates refresh token and issues new access token.
-
-### 🔹 **Logout**
-
-```
-POST /api/auth/logout/
-```
-
-Revokes current refresh token.
-
-### 🔹 **Logout All Devices**
-
-```
-POST /api/auth/logout-all/
-```
-
-Revokes all active refresh tokens.
-
-### 🔹 **Password Reset Request**
-
-```
-POST /api/password-reset/request/
-```
-
-Sends password reset email.
-
-### 🔹 **Password Reset Validate**
-
-```
-POST /api/password-reset/validate/
-```
-
-Validates reset token.
-
-### 🔹 **Password Reset Complete**
-
-```
-POST /api/password-reset/complete/
-```
-
-Resets password.
+Make sure to load environment variables using `python-dotenv` or `django-environ` and reference them in `settings.py`.
 
 ---
 
