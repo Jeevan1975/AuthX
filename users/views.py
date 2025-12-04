@@ -177,6 +177,8 @@ class TokenObtainView(APIView):
         return resp
 
 
+
+
 class TokenRefreshView(APIView):
     """
     POST /api/auth/token/refresh/
@@ -251,6 +253,8 @@ class TokenRefreshView(APIView):
         return resp
 
 
+
+
 class LogoutView(APIView):
     """
     POST /api/auth/logout/  -> revoke current refresh token (cookie)
@@ -269,6 +273,8 @@ class LogoutView(APIView):
         # clear cookie
         resp.delete_cookie(COOKIE_NAME, path=COOKIE_PATH)
         return resp
+
+
 
 
 class LogoutAllView(APIView):
